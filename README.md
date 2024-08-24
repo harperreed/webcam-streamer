@@ -2,7 +2,8 @@
 
 Welcome to the Webcam Streamer project repository! This README will guide you through the project overview, how to use it, and some technical information.
 
-![Uploading image.png…]()
+<img width="504" alt="image" src="https://github.com/user-attachments/assets/eaab63df-4a0b-4c3e-b9af-a9d9f9480a4e">
+
 
 ---
 
