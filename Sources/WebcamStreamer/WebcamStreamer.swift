@@ -20,16 +20,35 @@ class WebcamStreamer: NSObject, WebcamStreamerProtocol {
         self.config = config
         self.logger = logger
         super.init()
-        logger.info("Initializing WebcamStreamer with configuration: port=\(config.port), preset=\(config.captureSessionPreset), frameRate=\(config.frameRate)")
-        setupCaptureSession()
     }
 
-    private func setupCaptureSession() {
-        logger.info("Setting up capture session...")
+    func setupCaptureSession(withDevice device: AVCaptureDevice) {
         captureSession = AVCaptureSession()
         captureSession?.sessionPreset = config.captureSessionPreset
-        logger.info("Capture session preset set to: \(config.captureSessionPreset)")
 
+        do {
+            let input = try AVCaptureDeviceInput(device: device)
+            guard captureSession?.canAddInput(input) == true else {
+                logger.error("Cannot add video input to capture session")
+                return
+            }
+            captureSession?.addInput(input)
+
+            videoOutput = AVCaptureVideoDataOutput()
+            videoOutput?.setSampleBufferDelegate(self, queue: DispatchQueue(label: "videoQueue"))
+            guard let videoOutput = videoOutput, captureSession?.canAddOutput(videoOutput) == true else {
+                logger.error("Cannot add video output to capture session")
+                return
+            }
+            captureSession?.addOutput(videoOutput)
+
+            logger.info("Capture session setup completed successfully")
+        } catch {
+            logger.error("Error setting up capture session: \(error.localizedDescription)")
+        }
+    }
+
+    static func getAvailableCameras() -> [AVCaptureDevice] {
         var deviceTypes: [AVCaptureDevice.DeviceType] = [.builtInWideAngleCamera]
 
         if #available(macOS 14.0, *) {
@@ -42,54 +61,21 @@ class WebcamStreamer: NSObject, WebcamStreamerProtocol {
             position: .unspecified
         )
 
-        guard let device = discoverySession.devices.first else {
-            logger.error("No video device available")
-            return
-        }
-        logger.info("Video device found: \(device.localizedName)")
-
-        do {
-            let input = try AVCaptureDeviceInput(device: device)
-            guard captureSession?.canAddInput(input) == true else {
-                logger.error("Cannot add video input to capture session")
-                return
-            }
-            captureSession?.addInput(input)
-            logger.info("Video input added to capture session")
-
-            videoOutput = AVCaptureVideoDataOutput()
-            videoOutput?.setSampleBufferDelegate(self, queue: DispatchQueue(label: "videoQueue"))
-            guard let videoOutput = videoOutput, captureSession?.canAddOutput(videoOutput) == true else {
-                logger.error("Cannot add video output to capture session")
-                return
-            }
-            captureSession?.addOutput(videoOutput)
-
-            logger.info("Video output added to capture session")
-            
-            logger.info("Capture session setup completed successfully")
-        } catch {
-            logger.error("Error setting up capture session: \(error.localizedDescription)")
-        }
+        return discoverySession.devices
     }
 
     func startCapture() {
-        logger.info("Starting capture...")
         captureSession?.startRunning()
         logger.info("Capture started")
     }
 
     func stopCapture() {
-        logger.info("Stopping capture...")
         captureSession?.stopRunning()
         logger.info("Capture stopped")
     }
 
     func getCurrentImage() -> Data? {
-        logger.info("Retrieving current image...")
-        let image = imageQueue.sync { currentImageData }
-        logger.info("Current image retrieved. Size: \(image?.count ?? 0) bytes")
-        return image
+        return imageQueue.sync { currentImageData }
     }
 }
 
@@ -116,6 +102,5 @@ extension WebcamStreamer: AVCaptureVideoDataOutputSampleBufferDelegate {
         imageQueue.sync {
             currentImageData = jpegData
         }
-        logger.info("New frame captured and processed. Size: \(jpegData.count) bytes")
     }
 }

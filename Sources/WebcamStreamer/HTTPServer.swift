@@ -18,11 +18,9 @@ class HTTPServer: HTTPServerProtocol {
         self.server = server
         self.config = config
         self.logger = logger
-        logger.info("Initializing HTTPServer with configuration: port=\(config.port), frameRate=\(config.frameRate)")
     }
 
     func start() {
-        logger.info("Setting up server routes...")
         server["/"] = { _ in
             self.logger.info("Received request for home page")
             return .ok(.html(self.htmlContent))
@@ -32,7 +30,6 @@ class HTTPServer: HTTPServerProtocol {
             self.logger.info("Received request for stream")
             return .raw(200, "OK", ["Content-Type": "multipart/x-mixed-replace; boundary=frame"]) { writer in
                 do {
-                    var frameCount = 0
                     while self.isRunning {
                         if let imageData = self.streamer.getCurrentImage() {
                             do {
@@ -40,19 +37,18 @@ class HTTPServer: HTTPServerProtocol {
                                 try writer.write(Data("Content-Type: image/jpeg\r\n\r\n".utf8))
                                 try writer.write(imageData)
                                 try writer.write(Data("\r\n".utf8))
-                                frameCount += 1
-                                self.logger.info("Frame #\(frameCount) sent successfully. Size: \(imageData.count) bytes")
+                                self.logger.info("Frame sent successfully")
                             } catch {
                                 if let nsError = error as NSError?, nsError.domain == NSPOSIXErrorDomain && nsError.code == 32 {
-                                    self.logger.info("Client disconnected after \(frameCount) frames")
+                                    self.logger.info("Client disconnected")
                                     return
                                 } else {
-                                    self.logger.error("Error writing frame #\(frameCount): \(error.localizedDescription)")
+                                    self.logger.error("Error writing frame: \(error.localizedDescription)")
                                     throw error
                                 }
                             }
                         } else {
-                            self.logger.error("No image data available for frame #\(frameCount + 1)")
+                            self.logger.error("No image data available")
                         }
                         Thread.sleep(forTimeInterval: 1.0 / self.config.frameRate)
                     }
@@ -62,13 +58,10 @@ class HTTPServer: HTTPServerProtocol {
             }
         }
 
-        logger.info("Server routes set up successfully")
-
         do {
-            logger.info("Starting server on port \(config.port)...")
-            try server.start(config.port)
+            try server.start(config.port, forceIPv4: false, priority: .default, address: config.host)
             isRunning = true
-            logger.info("Server running on http://localhost:\(config.port)")
+            logger.info("Server running on http://\(config.host):\(config.port)")
             while isRunning {
                 RunLoop.current.run(until: Date(timeIntervalSinceNow: 1))
             }
@@ -78,7 +71,6 @@ class HTTPServer: HTTPServerProtocol {
     }
 
     func stop() {
-        logger.info("Stopping server...")
         isRunning = false
         server.stop()
         streamer.stopCapture()
