@@ -20,17 +20,21 @@ class WebcamStreamer: NSObject, WebcamStreamerProtocol {
         self.config = config
         self.logger = logger
         super.init()
+        logger.info("Initializing WebcamStreamer with configuration: port=\(config.port), preset=\(config.captureSessionPreset), frameRate=\(config.frameRate)")
         setupCaptureSession()
     }
 
     private func setupCaptureSession() {
+        logger.info("Setting up capture session...")
         captureSession = AVCaptureSession()
         captureSession?.sessionPreset = config.captureSessionPreset
+        logger.info("Capture session preset set to: \(config.captureSessionPreset)")
 
         guard let device = AVCaptureDevice.default(for: .video) else {
             logger.error("No video device available")
             return
         }
+        logger.info("Video device found: \(device.localizedName)")
 
         do {
             let input = try AVCaptureDeviceInput(device: device)
@@ -39,6 +43,7 @@ class WebcamStreamer: NSObject, WebcamStreamerProtocol {
                 return
             }
             captureSession?.addInput(input)
+            logger.info("Video input added to capture session")
 
             videoOutput = AVCaptureVideoDataOutput()
             videoOutput?.setSampleBufferDelegate(self, queue: DispatchQueue(label: "videoQueue"))
@@ -47,6 +52,7 @@ class WebcamStreamer: NSObject, WebcamStreamerProtocol {
                 return
             }
             captureSession?.addOutput(videoOutput)
+            logger.info("Video output added to capture session")
             
             logger.info("Capture session setup completed successfully")
         } catch {
@@ -55,17 +61,22 @@ class WebcamStreamer: NSObject, WebcamStreamerProtocol {
     }
 
     func startCapture() {
+        logger.info("Starting capture...")
         captureSession?.startRunning()
         logger.info("Capture started")
     }
 
     func stopCapture() {
+        logger.info("Stopping capture...")
         captureSession?.stopRunning()
         logger.info("Capture stopped")
     }
 
     func getCurrentImage() -> Data? {
-        return imageQueue.sync { currentImageData }
+        logger.info("Retrieving current image...")
+        let image = imageQueue.sync { currentImageData }
+        logger.info("Current image retrieved. Size: \(image?.count ?? 0) bytes")
+        return image
     }
 }
 
@@ -92,5 +103,6 @@ extension WebcamStreamer: AVCaptureVideoDataOutputSampleBufferDelegate {
         imageQueue.sync {
             currentImageData = jpegData
         }
+        logger.info("New frame captured and processed. Size: \(jpegData.count) bytes")
     }
 }
