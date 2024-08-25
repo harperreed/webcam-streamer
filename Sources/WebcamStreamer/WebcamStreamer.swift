@@ -30,7 +30,19 @@ class WebcamStreamer: NSObject, WebcamStreamerProtocol {
         captureSession?.sessionPreset = config.captureSessionPreset
         logger.info("Capture session preset set to: \(config.captureSessionPreset)")
 
-        guard let device = AVCaptureDevice.default(for: .video) else {
+        var deviceTypes: [AVCaptureDevice.DeviceType] = [.builtInWideAngleCamera]
+
+        if #available(macOS 14.0, *) {
+            deviceTypes.append(contentsOf: [.external, .continuityCamera])
+        }
+
+        let discoverySession = AVCaptureDevice.DiscoverySession(
+            deviceTypes: deviceTypes,
+            mediaType: .video,
+            position: .unspecified
+        )
+
+        guard let device = discoverySession.devices.first else {
             logger.error("No video device available")
             return
         }
@@ -52,6 +64,7 @@ class WebcamStreamer: NSObject, WebcamStreamerProtocol {
                 return
             }
             captureSession?.addOutput(videoOutput)
+
             logger.info("Video output added to capture session")
             
             logger.info("Capture session setup completed successfully")

@@ -13,6 +13,6 @@ let package = Package(
         .target(
             name: "WebcamStreamer",
             dependencies: [.product(name: "Swifter", package: "swifter")],
-            resources: [.process("../Info.plist")])
+            resources: [.process("Info.plist")])
     ]
 )
