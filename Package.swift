@@ -7,12 +7,15 @@ let package = Package(
         .macOS(.v10_15)
     ],
     dependencies: [
-        .package(url: "https://github.com/httpswift/swifter.git", .upToNextMajor(from: "1.5.0"))
+        .package(url: "https://github.com/httpswift/swifter.git", .upToNextMajor(from: "1.5.0")),
+        .package(url: "https://github.com/apple/swift-argument-parser", from: "1.0.0")
     ],
     targets: [
         .target(
             name: "WebcamStreamer",
-            dependencies: [.product(name: "Swifter", package: "swifter")],
-            resources: [.process("Info.plist")])
+            dependencies: [
+                .product(name: "Swifter", package: "swifter"),
+                .product(name: "ArgumentParser", package: "swift-argument-parser")
+            ])
     ]
 )
